@@ -1,5 +1,4 @@
 import streamlit as st
-import speech_recognition as sr
 import nltk
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import datetime
@@ -9,16 +8,7 @@ import datetime
 nltk.download('vader_lexicon')
 
 # Create a function to transcribe audio to text
-def transcribe_audio(audio_file):
-    r = sr.Recognizer()
-    with sr.AudioFile(audio_file) as source:
-        audio = r.listen(source)
 
-    try:
-        text = r.recognize_google(audio)
-        return text
-    except sr.UnknownValueError:
-        return None
 
 # Create a function to analyze the sentiment of a text using NLTK
 def analyze_sentiment(text):
@@ -58,13 +48,7 @@ st.title("Mood Tracker")
 
 # Display a text input and an audio uploader
 text_input = st.text_input("Text input")
-audio_file = st.file_uploader("Audio input", ["wav"])
 
-# If the user uploaded an audio file, transcribe it to text
-if audio_file:
-    audio_text = transcribe_audio(audio_file)
-else:
-    audio_text = None
 
 # If the user entered text or transcribed audio, analyze the sentiment
 if text_input or audio_text:
