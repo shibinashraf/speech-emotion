@@ -1,31 +1,85 @@
 import streamlit as st
-import requests
+import speech_recognition as sr
+import nltk
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+import datetime
 
-# API endpoint and API key
-API_URL = "https://api-inference.huggingface.co/models/ehcalabres/wav2vec2-lg-xlsr-en-speech-emotion-recognition"
-API_KEY = "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"
 
-st.title("Speech Emotion Recognition")
+# Download the VADER sentiment analysis lexicon (do this once)
+nltk.download('vader_lexicon')
 
-# Upload audio file
-audio_file = st.file_uploader("Upload an audio file", type=["wav"])
+# Create a function to transcribe audio to text
+def transcribe_audio(audio_file):
+    r = sr.Recognizer()
+    with sr.AudioFile(audio_file) as source:
+        audio = r.listen(source)
 
-if audio_file:
-    # Read the uploaded audio file
-    audio_data = audio_file.read()
+    try:
+        text = r.recognize_google(audio)
+        return text
+    except sr.UnknownValueError:
+        return None
 
-    # Make an API request
-    headers = {"Authorization": f"Bearer {API_KEY}"}
-    response = requests.post(API_URL, headers=headers, data=audio_data)
-
-    if response.status_code == 200:
-        results = response.json()
-        
-        # The result is a list, and you might want to access the first item (assuming there is only one)
-        if results:
-            emotion = results[0]["label"]
-            st.success(f"Detected Emotion: {emotion}")
-        else:
-            st.error("No emotion detected in the provided audio file.")
+# Create a function to analyze the sentiment of a text using NLTK
+def analyze_sentiment(text):
+    sid = SentimentIntensityAnalyzer()
+    sentiment_scores = sid.polarity_scores(text)
+    
+    if sentiment_scores['compound'] >= 0.05:
+        return "positive"
+    elif sentiment_scores['compound'] <= -0.05:
+        return "negative"
     else:
-        st.error("Error: Unable to recognize emotion from the provided audio file.")
+        return "neutral"
+
+# Create a function to track mood trends over time
+def track_mood_trends(mood_entries):
+    mood_trends = {}
+
+    for entry in mood_entries:
+        date = entry[0]
+        mood = entry[1]
+
+        if date not in mood_trends:
+            mood_trends[date] = []
+
+        mood_trends[date].append(mood)
+
+    average_mood_trends = {}
+
+    for day in mood_trends:
+        average_mood = sum(mood_trends[day]) / len(mood_trends[day])
+        average_mood_trends[day] = average_mood
+
+    return average_mood_trends
+
+# Create a Streamlit app
+st.title("Mood Tracker")
+
+# Display a text input and an audio uploader
+text_input = st.text_input("Text input")
+audio_file = st.file_uploader("Audio input", ["wav"])
+
+# If the user uploaded an audio file, transcribe it to text
+if audio_file:
+    audio_text = transcribe_audio(audio_file)
+else:
+    audio_text = None
+
+# If the user entered text or transcribed audio, analyze the sentiment
+if text_input or audio_text:
+    mood_sentiment = analyze_sentiment(text_input or audio_text)
+else:
+    mood_sentiment = None
+
+# Add the user's input to the database
+mood_entries = []
+
+if mood_sentiment:
+    mood_entries.append((datetime.datetime.now(), mood_sentiment))
+
+# Track mood trends over time
+average_mood_trends = track_mood_trends(mood_entries)
+
+# Display the user's mood trends
+st.line_chart(average_mood_trends)
